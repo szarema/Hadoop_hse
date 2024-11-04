@@ -21,8 +21,7 @@
 На каждом узле (192.168.1.23, 192.168.1.24, 192.168.1.25):
 
 ```bash
-sudo adduser hadoop  # Используйте 'hadoop' в качестве пароля
-sudo usermod -aG sudo hadoop
+sudo adduser hadoop  # Используйте сложный пароль, в нашем случае поставлен 'h@DooP$' в качестве пароля
 # и дальше все действия продолжаем через пользователь hadoop
 sudo su hadoop
 ```
@@ -137,13 +136,13 @@ source ~/.bashrc
 Только в NameNode:
 
 ```bash
-sudo mkdir -p /home/hadoop/hadoop-3.4.0/hdfs/namenode
+mkdir -p /home/hadoop/hadoop-3.4.0/hdfs/namenode
 ```
 
 Во всех нодах (NameNode и DataNodes):
 
 ```bash
-sudo mkdir -p /home/hadoop/hadoop-3.4.0/hdfs/datanode
+mkdir -p /home/hadoop/hadoop-3.4.0/hdfs/datanode
 ```
 
 ## Шаг 8: Форматирование NameNode
@@ -187,26 +186,91 @@ jps
 hadoop version
 ```
 
-## Шаг 11: Доступ к веб-интерфейсам
-
-Перенаправление портов на вашей локальной машине:
-
-```bash
-ssh -L 9870:192.168.1.23:9870 -L 9868:192.168.1.23:9868 -L 9864:192.168.1.23:9864 -L 9865:192.168.1.24:9864  -L 9866:192.168.1.25:9864 team@176.109.91.7
-```
-
-Доступ к веб-интерфейсам:
-
-- NameNode UI: <http://localhost:9870>
-- Secondary NameNode UI: <http://localhost:9868>
-- DataNode UI (NN): <http://localhost:9864>
-- DataNode UI (DN-0): <http://localhost:9865>
-- DataNode UI (DN-1): <http://localhost:9866>
-
-## Шаг 12: Остановка сервисов Hadoop
+## Шаг 11: Остановка сервисов Hadoop
 
 На NameNode:
 
 ```bash
 stop-dfs.sh
+```
+
+## Шаг 12: Настройка аутентификации и прокси для Hadoop UI
+
+## Установка htpasswd (все действия воспроизводятся на jump-node)
+
+```bash
+sudo apt update
+sudo apt install apache2-utils
+```
+
+## Создание файла паролей
+
+```bash
+# Создаем файл паролей и добавляем пользователя
+sudo htpasswd -c /etc/nginx/.htpasswd hadoop
+# Вам будет предложено ввести пароль для hadoop
+# пароль: h@DooP$
+
+# Выдаем нужные права
+sudo chmod 644 /etc/nginx/.htpasswd
+```
+
+Примечание: Флаг `-c` создаёт новый файл. Если файл уже существует и вам нужно добавить ещё одного пользователя, используйте команду без `-c`:
+
+```bash
+sudo htpasswd /etc/nginx/.htpasswd new_user
+```
+
+## Настройка Nginx для NameNode UI
+
+```bash
+# Создаем файл для namenode
+touch /etc/nginx/sites-available/nn
+
+# Заполняем файл и прописываем аутентификацию по паролю
+sudo vim /etc/nginx/sites-available/nn
+```
+
+Содержимое файла:
+
+```nginx
+server {
+    listen 9870 default_server;
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+    server_name _;
+
+    location / {
+        proxy_pass http://team-5-nn:9870;
+        auth_basic "Restricted Access";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+    }
+}
+```
+
+```bash
+# Добавляем UI namenode к доступным сайтам
+sudo ln -s /etc/nginx/sites-available/nn /etc/nginx/sites-enabled/nn
+```
+
+## Настройка для других компонентов
+
+Повторите аналогичные шаги для (в каждом файле в двух местах меняем порты):
+- Secondary NameNode (порт 9868)
+- YARN Resource Manager (порт 8088)
+- History Server (порт 19888)
+
+### Secondary NameNode
+
+```bash
+sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/sn
+sudo vim /etc/nginx/sites-available/sn
+sudo ln -s /etc/nginx/sites-available/sn /etc/nginx/sites-enabled/sn
+```
+## Доступ к веб-интерфейсам
+
+После настройки вы можете получить доступ к следующим веб-интерфейсам:
+
+- NameNode UI: http://176.109.91.7:9870
+- Secondary NameNode UI: http://176.109.91.7:9868
 ```
