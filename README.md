@@ -253,18 +253,14 @@ server {
 sudo ln -s /etc/nginx/sites-available/nn /etc/nginx/sites-enabled/nn
 ```
 
-## Настройка для других компонентов
+## Настройка для Secondary NameNode (порт 9868)
 
-Повторите аналогичные шаги для (в каждом файле в двух местах меняем порты):
-- Secondary NameNode (порт 9868)
-- YARN Resource Manager (порт 8088)
-- History Server (порт 19888)
 
 ### Secondary NameNode
 
 ```bash
 sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/sn
-sudo vim /etc/nginx/sites-available/sn
+sudo vim /etc/nginx/sites-available/sn # В двух местах меняем порты из 9870 на 9868
 sudo ln -s /etc/nginx/sites-available/sn /etc/nginx/sites-enabled/sn
 ```
 ## Доступ к веб-интерфейсам
